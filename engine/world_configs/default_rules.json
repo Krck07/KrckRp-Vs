@@ -1,0 +1,39 @@
+{
+  "stat_names": ["strength", "dexterity", "constitution", "intelligence"],
+  "ability_groups": [
+    "offense",
+    "defense", 
+    "restoration",
+    "mobility",
+    "perception",
+    "influence",
+    "manipulation",
+    "utility"
+  ],
+  "difficulty_scaling": 1.0,
+  "modifier_ranges": {"positive": 3, "negative": -3},
+  "default_difficulties": {
+    "move": 1.0,
+    "attack": 2.0,
+    "defend": 1.5,
+    "persuade": 2.5,
+    "stealth": 3.0,
+    "heal": 2.0,
+    "craft": 2.0
+  },
+  "terrain_modifiers": {
+    "difficult": -1.5,
+    "rough": -0.75,
+    "flat": 0.0,
+    "smooth": 0.75,
+    "forest": -0.5,
+    "mountain": -2.0
+  },
+  "equipment_modifiers": {
+    "weapon": 1.0,
+    "shield": 1.0,
+    "both": 2.0,
+    "armor": 0.5,
+    "magic_ring": 1.5
+  }
+}
