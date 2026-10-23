@@ -1,0 +1,32 @@
+[
+  {
+    "file": "C:\\Users\\krist\\OneDrive\\Documents\\Coding\\KrckRp-Vs\\engine\\quests.py",
+    "line": 219,
+    "summary": "Redundant condition check in quest completion logic",
+    "failure_scenario": "The condition 'quest.state != QuestStatus.COMPLETED' is redundant since if all objectives are complete, the quest should already be completed. This creates unnecessary complexity and potential for confusion."
+  },
+  {
+    "file": "C:\\Users\\krist\\OneDrive\\Documents\\Coding\\KrckRp-Vs\\engine\\quests.py",
+    "line": 74,
+    "summary": "Potential index calculation issue for negative indices in complete_objective method",
+    "failure_scenario": "When handling negative indices, if the objectives list is empty or has only one element, the indexing logic could produce incorrect results. The code doesn't properly validate that the computed index falls within valid range."
+  },
+  {
+    "file": "C:\\Users\\krist\\OneDrive\\Documents\\Coding\\KrckRp-Vs\\engine\\quests.py",
+    "line": 170,
+    "summary": "Inaccurate title truncation logic in generate_quest method",
+    "failure_scenario": "The title truncation using f'Quest: {npc_goal[:50]}...' can result in unexpected string lengths when npc_goal is exactly 50 characters, due to the additional 'Quest: ' prefix and '...' suffix. This could cause issues with display or storage limits."
+  },
+  {
+    "file": "C:\\Users\\krist\\OneDrive\\Documents\\Coding\\KrckRp-Vs\\engine\\quests.py",
+    "line": 209,
+    "summary": "Incomplete quest update logic that doesn't process all cases properly",
+    "failure_scenario": "The current implementation only processes quests with ACTIVE state and incomplete objectives. The event-based processing is stubbed out, leaving the system unable to properly update quests based on game events."
+  },
+  {
+    "file": "C:\\Users\\krist\\OneDrive\\Documents\\Coding\\KrckRp-Vs\\engine\\quests.py",
+    "line": 180,
+    "summary": "Inadequate handling of invalid player actions input",
+    "failure_scenario": "The code assumes player_actions is a list but doesn't properly handle cases where it might be None or not iterable, potentially causing runtime errors when trying to iterate over non-list objects."
+  }
+]
