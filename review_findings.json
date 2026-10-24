@@ -1,32 +1,32 @@
 [
   {
-    "file": "C:\\Users\\krist\\OneDrive\\Documents\\Coding\\KrckRp-Vs\\engine\\quests.py",
+    "file": "engine/quests.py",
+    "line": 71,
+    "summary": "Incomplete negative index handling in complete_objective method",
+    "failure_scenario": "When a negative index is passed that results in an index < 0 after adjustment, the code doesn't properly validate and will access self.objectives[index] with an invalid negative index resulting in unexpected behavior instead of raising IndexError."
+  },
+  {
+    "file": "engine/quests.py",
     "line": 219,
-    "summary": "Redundant condition check in quest completion logic",
-    "failure_scenario": "The condition 'quest.state != QuestStatus.COMPLETED' is redundant since if all objectives are complete, the quest should already be completed. This creates unnecessary complexity and potential for confusion."
+    "summary": "Inefficient quest state update logic that can cause redundant completion checks",
+    "failure_scenario": "The check 'quest.all_objectives_complete() and quest.state != QuestStatus.COMPLETED' will run the expensive all_objectives_complete function every time, even when there's no need to complete the quest if it's already completed or in a terminal state."
   },
   {
-    "file": "C:\\Users\\krist\\OneDrive\\Documents\\Coding\\KrckRp-Vs\\engine\\quests.py",
-    "line": 74,
-    "summary": "Potential index calculation issue for negative indices in complete_objective method",
-    "failure_scenario": "When handling negative indices, if the objectives list is empty or has only one element, the indexing logic could produce incorrect results. The code doesn't properly validate that the computed index falls within valid range."
+    "file": "engine/quests.py",
+    "line": 242,
+    "summary": "Misleading function documentation that contradicts implementation",
+    "failure_scenario": "The comment 'corrected function signature to return single Quest not List[Quest]' suggests this should be a simple wrapper but it actually creates a new QuestEngine instance each time, which is inefficient and potentially problematic."
   },
   {
-    "file": "C:\\Users\\krist\\OneDrive\\Documents\\Coding\\KrckRp-Vs\\engine\\quests.py",
-    "line": 170,
-    "summary": "Inaccurate title truncation logic in generate_quest method",
-    "failure_scenario": "The title truncation using f'Quest: {npc_goal[:50]}...' can result in unexpected string lengths when npc_goal is exactly 50 characters, due to the additional 'Quest: ' prefix and '...' suffix. This could cause issues with display or storage limits."
+    "file": "database/models.py",
+    "line": 125,
+    "summary": "Inconsistent data type handling for relationship fields in Quest model",
+    "failure_scenario": "The giver_character_ids field uses JSON serialization but other related fields like related_locations use different approaches (e.g., JSON for objects with specific types). This inconsistency makes the schema harder to understand and maintain."
   },
   {
-    "file": "C:\\Users\\krist\\OneDrive\\Documents\\Coding\\KrckRp-Vs\\engine\\quests.py",
-    "line": 209,
-    "summary": "Incomplete quest update logic that doesn't process all cases properly",
-    "failure_scenario": "The current implementation only processes quests with ACTIVE state and incomplete objectives. The event-based processing is stubbed out, leaving the system unable to properly update quests based on game events."
-  },
-  {
-    "file": "C:\\Users\\krist\\OneDrive\\Documents\\Coding\\KrckRp-Vs\\engine\\quests.py",
-    "line": 180,
-    "summary": "Inadequate handling of invalid player actions input",
-    "failure_scenario": "The code assumes player_actions is a list but doesn't properly handle cases where it might be None or not iterable, potentially causing runtime errors when trying to iterate over non-list objects."
+    "file": "database/operations.py",
+    "line": 186,
+    "summary": "Improper handling of None values in event logging leading to incorrect storage",
+    "failure_scenario": "The code converts None values to string 'None' instead of preserving actual None, which will result in inconsistent data representation and potentially break deserialization logic."
   }
 ]
