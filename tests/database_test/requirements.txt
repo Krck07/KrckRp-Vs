@@ -1,0 +1,6 @@
+# Test requirements for database modules
+pytest>=6.0.0
+unittest2>=1.1.0
+sqlalchemy>=1.4.0
+numpy>=1.20.0
+sentence-transformers>=2.0.0

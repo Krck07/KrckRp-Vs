@@ -10,14 +10,20 @@ from database.models import Base, World, Campaign, Character, Location, Item, Ab
 import datetime
 
 class DatabaseOperations:
-    def __init__(self, db_path="sqlite:///krckrp.db"):
+    def __init__(self, db_path=":memory:"):
         """
         Initialize the database operations with a connection to the SQLite database.
 
         Args:
             db_path (str): Path to the SQLite database file
         """
-        self.engine = create_engine(db_path)
+        # Handle both URL format and regular path for SQLite
+        if not db_path.startswith("sqlite://"):
+            db_url = f"sqlite:///{db_path}"
+        else:
+            db_url = db_path
+
+        self.engine = create_engine(db_url)
         Base.metadata.create_all(self.engine)
         SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
         self.SessionLocal = SessionLocal

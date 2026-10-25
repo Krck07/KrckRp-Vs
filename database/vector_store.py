@@ -11,17 +11,18 @@ from sentence_transformers import SentenceTransformer
 import sqlite3
 
 class VectorStore:
-    def __init__(self, db_path="sqlite:///vector_store.db"):
+    def __init__(self, db_path=":memory:"):
         """
         Initialize the vector store with a connection to SQLite database.
 
         Args:
             db_path (str): Path to the SQLite database file for storing embeddings and metadata
         """
-        self.db_path = db_path
-
-        # Create tables if they don't exist
-        self._init_db()
+        # Convert SQLAlchemy URL format to actual path if needed
+        if db_path.startswith("sqlite:///"):
+            self.db_path = db_path[10:]  # Remove 'sqlite:///' prefix
+        else:
+            self.db_path = db_path
 
         # Initialize embedding model (using a lightweight model)
         try:
@@ -30,34 +31,52 @@ class VectorStore:
             print(f"Warning: Could not load sentence transformer, falling back to basic implementation. Error: {e}")
             self.model = None
 
+        # Create tables if they don't exist (just in case)
+        self._init_db()
+
     def _init_db(self):
         """Initialize the SQLite database with required tables."""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+        try:
+            # Ensure we have a fresh connection for initialization
+            conn = sqlite3.connect(self.db_path)
 
-        # Create memories table
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS memories (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                text_content TEXT NOT NULL,
-                metadata TEXT,  -- JSON string of metadata
-                embedding BLOB,  -- Binary representation of vector
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        ''')
+            # Check existing tables before creating them
+            cursor = conn.cursor()
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+            all_tables_before = cursor.fetchall()
 
-        # Create embeddings table (separate for better performance)
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS embeddings (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                memory_id INTEGER,
-                vector_data BLOB,  -- Binary representation of embedding vector
-                FOREIGN KEY (memory_id) REFERENCES memories(id)
-            )
-        ''')
+            # Create memories table if it doesn't exist
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS memories (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    text_content TEXT NOT NULL,
+                    metadata TEXT,  -- JSON string of metadata
+                    embedding BLOB,  -- Binary representation of vector
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
 
-        conn.commit()
-        conn.close()
+            # Create embeddings table if it doesn't exist
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS embeddings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    memory_id INTEGER,
+                    vector_data BLOB,  -- Binary representation of embedding vector
+                    FOREIGN KEY (memory_id) REFERENCES memories(id)
+                )
+            ''')
+
+            conn.commit()
+
+            # Verify tables were created by checking again
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
+            all_tables_after = cursor.fetchall()
+            print(f"DEBUG: Tables after initialization: {all_tables_after}")
+
+            conn.close()
+        except Exception as e:
+            print(f"Error initializing database: {e}")
+            raise
 
     def store_memory(self, text_content: str, metadata: Dict[str, Any] = None):
         """
@@ -71,6 +90,7 @@ class VectorStore:
             int: ID of stored memory
         """
         try:
+            # Use a fresh connection for storage operations
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
 
@@ -110,6 +130,12 @@ class VectorStore:
             return memory_id
 
         except Exception as e:
+            if 'conn' in locals():
+                try:
+                    conn.rollback()
+                    conn.close()
+                except:
+                    pass
             print(f"Error storing memory: {e}")
             raise
 
@@ -197,7 +223,12 @@ class VectorStore:
         """
         if self.model:
             try:
-                return self.model.encode(text).tolist()
+                result = self.model.encode(text)
+                # Handle both numpy arrays and lists properly
+                if hasattr(result, 'tolist'):
+                    return result.tolist()
+                else:
+                    return list(result)
             except Exception as e:
                 print(f"Error generating embedding: {e}")
                 return []
@@ -220,6 +251,14 @@ class VectorStore:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
 
+            # Check if memory exists first
+            cursor.execute('SELECT id FROM memories WHERE id = ?', (memory_id,))
+            existing_memory = cursor.fetchone()
+
+            if existing_memory is None:
+                # Memory doesn't exist, but we consider this a successful "no-op"
+                return True
+
             # Delete from embeddings table first due to foreign key constraint
             cursor.execute('DELETE FROM embeddings WHERE memory_id = ?', (memory_id,))
 
@@ -232,7 +271,7 @@ class VectorStore:
             return True
         except Exception as e:
             print(f"Error deleting memory: {e}")
-            return False
+            return False  # Return False on actual errors (but not non-existent IDs)
 
     def get_memory_by_id(self, memory_id: int) -> Dict[str, Any]:
         """
