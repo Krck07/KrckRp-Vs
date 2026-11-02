@@ -179,10 +179,12 @@ class QuestEngine:
         objectives = []
         if player_actions and isinstance(player_actions, list):
             for i, action in enumerate(player_actions[:3]):  # Limit to first 3 actions
-                if isinstance(action, str):  # Ensure it's a valid string
-                    objectives.append(Objective(f"Action {i+1}: {action}"))
-                else:
-                    # Skip invalid non-string items gracefully
+                try:
+                    # Ensure it's a valid string (handle edge cases)
+                    str_action = str(action) if not isinstance(action, str) else action
+                    objectives.append(Objective(f"Action {i+1}: {str_action}"))
+                except Exception:
+                    # Skip invalid items gracefully
                     continue
 
         quest = Quest(title, summary, giver, objectives)

@@ -188,15 +188,16 @@ class DatabaseOperations:
         """
         db = self.SessionLocal()
         try:
-            # Convert None values to actual None for database storage instead of string "None"
-            before_str = str(before_values) if before_values is not None else None
-            after_str = str(after_values) if after_values is not None else None
+            # Convert dictionaries to JSON strings for proper serialization
+            import json
+            before_json = json.dumps(before_values) if before_values is not None else None
+            after_json = json.dumps(after_values) if after_values is not None else None
 
             event = Event(
                 turn_id=turn_id,
                 source=source,
-                before_values=before_str,
-                after_values=after_str,
+                before_values=before_json,
+                after_values=after_json,
                 timestamp=datetime.datetime.utcnow()
             )
             db.add(event)

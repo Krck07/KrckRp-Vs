@@ -5,6 +5,7 @@ Pipeline module - Orchestrates the 8-step turn loop:
 
 from typing import Dict, Any, Optional, List
 import json
+import datetime
 
 # Import required engine components
 from engine.rules import RulesEngine, OutcomeTier
@@ -29,7 +30,7 @@ class Pipeline:
         # LLM client will be initialized with appropriate endpoints
         self.llm_client = None
 
-    def run_turn(self, player_input: str, campaign_id: int, session_id: int) -> Dict[str, Any]:
+    async def run_turn(self, player_input: str, campaign_id: int, session_id: int) -> Dict[str, Any]:
         """
         Execute one complete turn of the game loop through 8 steps:
         1. Receive input - Store player action
@@ -64,10 +65,10 @@ class Pipeline:
             context_prompt = self._assemble_narrator_context(turn, intent_data, resolution_result)
 
             # Step 5: Generate narration using LLM with assembled context
-            narration_response = self._generate_narration(context_prompt)
+            narration_response = await self._generate_narration(context_prompt)
 
             # Step 6: Extract state changes from response using extractor LLM
-            extraction_result = self._extract_changes(narration_response.get("text", ""), player_input)
+            extraction_result = await self._extract_changes(narration_response.get("text", ""), player_input)
 
             # Step 7: Validate and commit extracted changes to database
             event_log = self._validate_and_commit(extraction_result, turn.id, resolution_result)
@@ -217,45 +218,71 @@ class Pipeline:
         Returns:
             Formatted string prompt for narrator LLM
         """
-        # This would use ContextBuilder to create a proper prompt structure
-
         # Get character info (simplified)
         character = self.db_session.query(Character).filter_by(id=turn.character_id).first()
         location = self.db_session.query(Location).filter_by(id=character.location_id).first()
 
-        # Get active quests
-        quests = self.quest_engine.get_active_quests()
+        # Get active quests using database query instead of QuestEngine method that may not exist
+        try:
+            active_quests = self.db_session.query(Quest).filter_by(state='active').all()
 
-        # Build basic context structure (would be more detailed in full implementation)
-        context_data = {
-            "player_action": intent_data["raw_input"],
-            "character_name": character.name if character else "Unknown",
-            "location_name": location.name if location else "Unknown",
-            "outcome_tier": resolution_result["outcome_tier"],
-            "consequences": resolution_result["consequences"]
+            # Convert to list of dictionaries for context building
+            quests = [
+                {
+                    "id": quest.id,
+                    "title": quest.title,
+                    "summary": quest.summary,
+                    "giver_character_ids": quest.giver_character_ids,
+                    "objectives": json.loads(quest.objectives) if quest.objectives else [],
+                    "state": quest.state
+                }
+                for quest in active_quests
+            ]
+        except Exception:
+            # Fallback if database query fails or method doesn't exist yet
+            quests = []
+
+        # Build context using ContextBuilder for proper formatting and token management
+        from engine.context_builder import ContextBuilder
+
+        context_builder = ContextBuilder(self.db_session, self.vector_store)
+
+        # Prepare mock data structures since we don't have full context objects here
+        character_data = {
+            "name": character.name if character else "Unknown",
+            "description": character.description if character else "",
+            "stats": character.stats if character else {},
+            "status": character.status if character else "Normal",
+            "inventory": character.inventory if character else []
+        } if character else {}
+
+        location_data = {
+            "name": location.name if location else "Unknown",
+            "description": location.description if location else "",
+            "connections": location.connections if location else [],
+            "tags": location.tags if location else []
+        } if location else {}
+
+        # Build context data for the prompt
+        turn_data = {
+            "player_input": intent_data["raw_input"],
+            "timestamp": datetime.datetime.utcnow()
         }
 
-        # For now, return a simple formatted string - in real implementation this
-        # would call context_builder.build_narrator_prompt()
-        prompt = f"""
-[PLAYER ACTION]
-{context_data['player_action']}
+        memory_context = []  # Would be retrieved from vector store
 
-[CHARACTER STATE]
-Name: {context_data['character_name']}
-Stats: {character.stats if character else 'N/A'}
-
-[LOCATION INFO]
-Location: {context_data['location_name']}
-
-[MECHANICAL OUTCOME]
-Result: {context_data['outcome_tier']}
-Consequences: {' '.join(context_data['consequences'])}
-"""
+        prompt = context_builder.build_narrator_prompt(
+            turn_data=turn_data,
+            character=character_data,
+            location=location_data,
+            quests=quests,
+            memory_context=memory_context,
+            resolution_result=resolution_result
+        )
 
         return prompt
 
-    def _generate_narration(self, context_prompt: str) -> Dict[str, Any]:
+    async def _generate_narration(self, context_prompt: str) -> Dict[str, Any]:
         """
         Generate narrative response using narrator LLM.
 
@@ -266,24 +293,31 @@ Consequences: {' '.join(context_data['consequences'])}
             Dictionary with narration result
         """
         # In a real implementation this would call the actual LLM client
-        # For now return placeholder
 
         if not self.llm_client:
             # Initialize with default narrator endpoint if not already set
             try:
                 from llm.client import LLMClient
-                self.llm_client = LLMClient(narrator_endpoint="http://localhost:5001")
+                self.llm_client = LLMClient()
             except Exception as e:
                 print(f"Could not initialize LLM client: {e}")
+                return {"text": "Error generating narration", "tokens_used": 0, "model_used": "narrator"}
 
-        # Placeholder result for demonstration purposes
-        return {
-            "text": f"The narrator would generate a response here based on '{context_prompt[:50]}...'",
-            "tokens_used": 200,
-            "model_used": "narrator"
-        }
+        # Make async call to the actual LLM
+        try:
+            from llm.client import LLMClient
+            client = LLMClient()
+            result = await client.call_narrator(context_prompt)
+            return {
+                "text": result.get("text", ""),
+                "tokens_used": 200,
+                "model_used": "narrator"
+            }
+        except Exception as e:
+            print(f"Error in narration generation: {e}")
+            return {"text": f"Error: {str(e)}", "tokens_used": 0, "model_used": "narrator"}
 
-    def _extract_changes(self, narration_text: str, player_input: str) -> Dict[str, Any]:
+    async def _extract_changes(self, narration_text: str, player_input: str) -> Dict[str, Any]:
         """
         Extract state changes from narrative text using extractor LLM.
 
@@ -299,15 +333,24 @@ Consequences: {' '.join(context_data['consequences'])}
         if not self.llm_client:
             try:
                 from llm.client import LLMClient
-                self.llm_client = LLMClient(extractor_endpoint="http://localhost:5002")
+                self.llm_client = LLMClient()
             except Exception as e:
                 print(f"Could not initialize extractor client: {e}")
+                return {"proposed_changes": [], "validation_status": "error"}
 
-        # Placeholder result for demonstration purposes
-        return {
-            "proposed_changes": [],
-            "validation_status": "pending"
-        }
+        # Make async call to the actual LLM
+        try:
+            from llm.client import LLMClient
+            client = LLMClient()
+            result = await client.call_extractor(narration_text, player_input)
+            if result.get("status") == "success":
+                return {"proposed_changes": result.get("changes", []), "validation_status": "validated"}
+            else:
+                print(f"Extractor error: {result.get('error', 'Unknown error')}")
+                return {"proposed_changes": [], "validation_status": "error"}
+        except Exception as e:
+            print(f"Error in change extraction: {e}")
+            return {"proposed_changes": [], "validation_status": "error"}
 
     def _validate_and_commit(self, extraction_result: Dict[str, Any], turn_id: int,
                            resolution_result: Dict[str, Any]) -> List[Event]:
