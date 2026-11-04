@@ -5,6 +5,7 @@ applies modifiers, and outputs deterministic "outcome tiers"
 
 import json
 import os
+import math
 from enum import Enum
 from typing import Dict, List, Tuple, Any
 
@@ -252,22 +253,36 @@ class RulesEngine:
     def _calculate_success_chance(self, capability: float, difficulty: float) -> float:
         """
         Calculate probability of success (0.0 to 1.0).
-        
+
         Args:
-            capability: Actor's capability score  
+            capability: Actor's capability score
             difficulty: Modified difficulty
-            
+
         Returns:
             Success probability
         """
-        # Simple formula: chance = capability / difficulty 
+        # Use proper mathematical approach with bounded probability calculation
         if difficulty <= 0:
             return 1.0 if capability > 0 else 0.0
-            
-        ratio = capability / difficulty
-        success_chance = max(0.0, min(ratio, 1.0))  # Clamp between 0 and 1
-        
-        return success_chance
+
+        # Calculate success chance using a smooth sigmoid-like function to avoid extreme clamping
+        # This provides more nuanced probabilities than simple ratio clamped to [0,1]
+
+        # Use logistic function scaled between 0 and 1 for smoother probability transitions
+        # The scaling factor helps control how quickly the probability approaches extremes
+        scale_factor = 2.0
+
+        # Use a numerically stable version of sigmoid to avoid overflow/underflow
+        try:
+            exponent = -scale_factor * (capability - difficulty) / difficulty
+            # Clamp the exponent to prevent overflow in exp()
+            exponent = max(-500, min(exponent, 500))
+            success_chance = 1 / (1 + math.exp(exponent))
+        except OverflowError:
+            # Handle extreme cases gracefully
+            success_chance = 1.0 if capability > difficulty else 0.0
+
+        return max(0.0, min(success_chance, 1.0))  # Ensure within bounds
     
     def _determine_outcome_tier(self, success_probability: float) -> OutcomeTier:
         """

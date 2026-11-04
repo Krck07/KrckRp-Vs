@@ -200,26 +200,22 @@ class QuestEngine:
         Returns:
             List of updated quest statuses
         """
-        # More efficient implementation that only processes quests that need updates
-        if not self.active_quests:
+        # In a real implementation this would process the event log to determine
+        # which objectives have been completed or changed.
+
+        if not self.active_quests or not event_log:
             return []
 
-        # Process the event log to update objectives and check for completed quests
+        # For now, we implement a minimal version that updates quests based on objective completion
         updated_quests = []
 
         for quest in self.active_quests:
-            # Check if this quest can be updated and needs processing
-            if (quest.state == QuestStatus.ACTIVE and
-                any(obj.status != QuestStatus.COMPLETED for obj in quest.objectives)):
+            if quest.state != QuestStatus.ACTIVE:
+                continue
 
-                # In a real implementation, we would analyze the event_log here to
-                # determine which objectives are now complete based on game events.
-                # For this basic implementation, we'll just check if all objectives are complete
-
-                # Update based on current state - simplified but more efficient approach
-                # Only complete the quest once to prevent redundant state changes
-                if quest.all_objectives_complete() and quest.state != QuestStatus.COMPLETED:
-                    quest.complete()
+            # Check if all objectives are complete to mark the quest as completed
+            if quest.all_objectives_complete() and quest.state != QuestStatus.COMPLETED:
+                quest.complete()
 
             updated_quests.append(quest)
 

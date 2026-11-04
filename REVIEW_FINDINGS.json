@@ -1,1 +1,32 @@
-[{"file": "engine/pipeline.py", "line": 194, "summary": "Hardcoded success probability in _resolve_mechanics prevents proper outcome calculation", "failure_scenario": "Method always returns \"success_probability\": 0.5 instead of calculated values from rules engine, preventing accurate game mechanics", "category": "correctness", "short_summary": "Hardcoded probability value", "outcome": "fixed"}, {"file": "engine/pipeline.py", "line": 310, "summary": "Hardcoded token count breaks LLM usage metrics and prompt management", "failure_scenario": "Returns fixed tokens_used=200 instead of actual tokens used by LLM, breaking metrics and potentially causing prompt truncation issues", "category": "correctness", "short_summary": "Hardcoded token counts", "outcome": "fixed"}, {"file": "engine/pipeline.py", "line": 375, "summary": "_validate_and_commit creates events even when extraction_result has no changes", "failure_scenario": "Database operations run for empty changes, which is wasteful and could cause issues in actual implementation", "category": "efficiency", "short_summary": "Unnecessary database operations", "outcome": "fixed"}, {"file": "engine/pipeline.py", "line": 308, "summary": "_generate_narration creates new LLMClient instances unnecessarily", "failure_scenario": "Creates a new LLMClient for each call instead of using the already initialized one, wasting resources and causing inefficiency in async contexts", "category": "efficiency", "short_summary": "Redundant LLM client instantiation", "outcome": "fixed"}, {"file": "engine/pipeline.py", "line": 343, "summary": "_extract_changes creates new LLMClient instances unnecessarily", "failure_scenario": "Creates a new LLMClient for each call instead of using the already initialized one, wasting resources and causing inefficiency in async contexts", "category": "efficiency", "short_summary": "Redundant LLM client instantiation", "outcome": "fixed"}, {"file": "engine/context_builder.py", "line": 254, "summary": "Flawed token budgeting algorithm causes incorrect token distribution across prompt sections", "failure_scenario": "Token allocation logic is flawed, potentially causing prompt truncation or improper section prioritization in narrator prompts", "category": "correctness", "short_summary": "Faulty token budgeting", "outcome": "fixed"}, {"file": "engine/quests.py", "line": 193, "summary": "update_quests method is stubbed without actual event processing logic", "failure_scenario": "Quest system cannot properly update quests based on game events, breaking emergent quest functionality", "category": "correctness", "short_summary": "Incomplete quest updates", "outcome": "fixed"}, {"file": "database/operations.py", "line": 149, "summary": "JSON serialization format mismatch in log_event causes test failures", "failure_scenario": "Database operations fail due to inconsistent JSON formatting between single and double quotes, causing test suite to break", "category": "correctness", "short_summary": "JSON serialization inconsistency", "outcome": "fixed"}, {"file": "engine/rules.py", "line": 260, "summary": "_calculate_success_chance uses flawed probability calculation approach", "failure_scenario": "Method incorrectly clamps results to 1.0 instead of using proper ratio-based mathematical formulas for success chance calculation", "category": "correctness", "short_summary": "Incorrect probability calculations", "outcome": "fixed"}]
+[
+  {
+    "file": "engine/rules.py",
+    "line": 276,
+    "summary": "Redundant condition check in _calculate_success_chance can cause incorrect probability calculations",
+    "failure_scenario": "The method checks difficulty <= 0 twice - once at line 265 and again at line 276, which is redundant and could lead to confusion or errors if the logic changes"
+  },
+  {
+    "file": "engine/pipeline.py",
+    "line": 316,
+    "summary": "LLM client instantiation bypasses existing instance in _generate_narration method",
+    "failure_scenario": "Creates a new LLMClient instead of using self.llm_client, which could lead to resource waste and inconsistent configuration"
+  },
+  {
+    "file": "engine/pipeline.py",
+    "line": 349,
+    "summary": "LLM client instantiation bypasses existing instance in _extract_changes method",
+    "failure_scenario": "Creates a new LLMClient instead of using self.llm_client, which could lead to resource waste and inconsistent configuration"
+  },
+  {
+    "file": "engine/quests.py",
+    "line": 206,
+    "summary": "Incomplete quest update logic in update_quests method",
+    "failure_scenario": "The implementation only checks if all objectives are complete but doesn't actually process events to determine which objectives have changed"
+  },
+  {
+    "file": "engine/pipeline.py",
+    "line": 375,
+    "summary": "Unnecessary database operations when no changes present in _validate_and_commit method",
+    "failure_scenario": "Creates event entries even for empty changes, which is wasteful and could cause issues with actual implementation"
+  }
+]

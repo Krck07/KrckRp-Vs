@@ -191,10 +191,18 @@ class Pipeline:
                 context_modifiers=context_modifiers
             )
 
+            # Calculate capability and difficulty for success probability calculation
+            capability = self.rules_engine._calculate_capability(intent_data["action"], actor_stats)
+            modified_difficulty = self.rules_engine._apply_context_modifiers(
+                self.rules_engine._calculate_base_difficulty(intent_data["action"]),
+                context_modifiers
+            )
+
             return {
                 "outcome_tier": tier.value,
                 "consequences": consequences,
-                "success_probability": 0.5  # Would be calculated by rules engine
+                "success_probability": self.rules_engine._calculate_success_chance(
+                    capability, modified_difficulty)
             }
         except Exception as e:
             print(f"Error in mechanical resolution: {e}")
@@ -305,12 +313,10 @@ class Pipeline:
 
         # Make async call to the actual LLM
         try:
-            from llm.client import LLMClient
-            client = LLMClient()
-            result = await client.call_narrator(context_prompt)
+            result = await self.llm_client.call_narrator(context_prompt)
             return {
                 "text": result.get("text", ""),
-                "tokens_used": 200,
+                "tokens_used": result.get("tokens_used", 0),
                 "model_used": "narrator"
             }
         except Exception as e:
@@ -330,19 +336,11 @@ class Pipeline:
         """
         # In a real implementation this would use an extractor LLM to parse the narrative
 
-        if not self.llm_client:
-            try:
-                from llm.client import LLMClient
-                self.llm_client = LLMClient()
-            except Exception as e:
-                print(f"Could not initialize extractor client: {e}")
-                return {"proposed_changes": [], "validation_status": "error"}
-
         # Make async call to the actual LLM
         try:
-            from llm.client import LLMClient
-            client = LLMClient()
-            result = await client.call_extractor(narration_text, player_input)
+            if not self.llm_client:
+                raise RuntimeError("LLM client is not initialized")
+            result = await self.llm_client.call_extractor(narration_text, player_input)
             if result.get("status") == "success":
                 return {"proposed_changes": result.get("changes", []), "validation_status": "validated"}
             else:
@@ -368,7 +366,7 @@ class Pipeline:
         # In a full implementation, this would validate each proposed change
         # against game rules and state, then create event log entries
 
-        # Placeholder that creates a basic event for demonstration
+        # Only create events if there are actual changes to log
         events = []
 
         try:
